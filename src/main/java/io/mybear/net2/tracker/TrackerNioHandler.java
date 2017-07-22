@@ -1,12 +1,12 @@
 package io.mybear.net2.tracker;
 
 import io.mybear.net2.NIOHandler;
-import io.mybear.tracker.command.TrackerCommand;
 import io.mybear.tracker.command.TrackerCommandFactory;
-import java.io.IOException;
-import java.nio.ByteBuffer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
 
 public class TrackerNioHandler implements NIOHandler<TrackerConnection> {
     private static final Logger logger = LoggerFactory.getLogger(TrackerNioHandler.class);

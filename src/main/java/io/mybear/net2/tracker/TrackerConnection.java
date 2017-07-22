@@ -7,17 +7,18 @@ import io.mybear.tracker.types.FdfsGroupInfo;
 import io.mybear.tracker.types.FdfsStorageDetail;
 import io.mybear.tracker.types.FdfsStorageStat;
 import io.mybear.tracker.types.TrackerClientInfo;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 
 public class TrackerConnection extends Connection {
 
-    private long readBufferOffset;
-
     protected TrackerByteBufferArray readBufferArray;
-
+    protected TrackerByteBufferArray writeBufferArray;
+    private long readBufferOffset;
     private TrackerClientInfo clientInfo;
 
     private TrackerMessage message = new TrackerMessage();
@@ -40,6 +41,9 @@ public class TrackerConnection extends Connection {
 
         this.readBufferArray = myBufferPool.allocateTrackerByteBufferArray();
         readBufferArray.addNewBuffer();
+
+        this.writeBufferArray = myBufferPool.allocateTrackerByteBufferArray();
+        writeBufferArray.addNewBuffer();
     }
 
     @Override
@@ -100,6 +104,75 @@ public class TrackerConnection extends Connection {
         }
     }
 
+    public void write(byte[] bytes) {
+        writeBufferArray.write(bytes);
+        this.enableWrite(true);
+    }
+
+    public TrackerByteBufferArray getWriteBufferArray() {
+        if (writeBufferArray == null) {
+            writeBufferArray = getMyBufferPool().allocateTrackerByteBufferArray();
+            writeBufferArray.addNewBuffer();
+        }
+        return writeBufferArray;
+    }
+
+    @Override
+    public void doWriteQueue() {
+        try {
+            boolean noMoreData;
+
+            for (;;) {
+                int written = 0;
+                if (writeBufferArray == null) {
+                    break;
+                }
+                for (ByteBuffer buffer : writeBufferArray.getWritedBlockLst()) {
+                    buffer.flip();
+
+                    // ByteBuffer buffer = writeBuffer;
+                    if (buffer != null) {
+                        while (buffer.hasRemaining()) {
+                            written = channel.write(buffer);
+                            if (written > 0) {
+//                                netOutBytes += written;
+//                                NetSystem.getInstance().addNetOutBytes(written);
+                            } else {
+                                break;
+                            }
+                        }
+
+                    }
+                }
+
+                if (writeBufferArray.getLastByteBuffer().hasRemaining()) {
+                    noMoreData = false;
+                } else {
+                    writeBufferArray.recycle();
+                    writeBufferArray = null;
+                    noMoreData = true;
+                }
+
+                if (noMoreData) {
+                    if ((processKey.isValid()
+                            && (processKey.interestOps() & SelectionKey.OP_WRITE) != 0)) {
+                        disableWrite();
+                    }
+                } else {
+                    if ((processKey.isValid()
+                            && (processKey.interestOps() & SelectionKey.OP_WRITE) == 0)) {
+                        enableWrite(false);
+                    }
+                }
+            }
+        } catch (IOException e) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("caught err:", e);
+            }
+            close("err:" + e);
+        }
+    }
+
     protected long parseProtocolPakage(){
         long length, limit = message.getData().getTotalBytesLength();
         byte packetCmd;
@@ -149,14 +222,5 @@ public class TrackerConnection extends Connection {
 
     public TrackerMessage getMessage() {
         return message;
-    }
-
-    public long getReadBufferOffset() {
-        return readBufferOffset;
-    }
-
-    private void copyToNewBuffer(TrackerByteBufferArray byteBufferArray, ByteBuffer readByteBuffer
-        , long offset){
-
     }
 }

@@ -8,6 +8,7 @@ import java.nio.channels.FileChannel;
 import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.util.concurrent.ExecutorService;
+import java.util.zip.CRC32;
 
 /**
  * Created by jamie on 2017/6/22.
@@ -15,7 +16,7 @@ import java.util.concurrent.ExecutorService;
 public class StorageFileContext implements Serializable{
     private static final long serialVersionUID = -655643703448865782L;
 
-    public String filename;    //full filename char filename[MAX_PATH_SIZE + 128];
+    public String filename = "";    //full filename char filename[MAX_PATH_SIZE + 128];
 
     /* FDFS logic filename to log not including group name */
     public String fname2log;//char fname2log[128+sizeof(FDFS_STORAGE_META_FILE_EXT)];
@@ -26,7 +27,7 @@ public class StorageFileContext implements Serializable{
     public boolean calcFileHash;      //if calculate file content hash code
     public StandardOpenOption openFlags;           //open file flags
     public int[] fileHashCodes;   //file hash code int fileHashCodes[4]
-    public long crc32;   //file content crc32 signature
+    public CRC32 crc32;   //file content crc32 signature
     public MessageDigest MD5CTX;//MD5CTX md5_context;
 
     public Object extra_info;//StorageUploadInfo or StorageSetMetaInfo
